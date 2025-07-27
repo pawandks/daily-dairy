@@ -72,3 +72,58 @@ if __name__ == "__main__":
         print("Q:", q)
         print("A:", answer, "\n")
         save_to_json(q, answer)
+
+        
+# 🧠 RAG-based Question Answering Bot using Gemini 1.5 Flash and Chroma Vectorstore
+
+import os
+import json
+from dotenv import load_dotenv
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_community.document_loaders import TextLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import Chroma
+from langchain.chains import RetrievalQA
+
+# 🔐 Load environment variables (e.g., Gemini API key)
+load_dotenv()
+
+# 💬 Initialize LLM (Gemini Flash) and Embedding Model
+llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
+embedding_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+
+# 📄 Load and split document into chunks
+loader = TextLoader("company_docs.txt")  # Make sure this file exists
+docs = loader.load()
+chunks = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200).split_documents(docs)
+
+# 🧠 Create vector store from document chunks
+# 🔄 This is the core of RAG: combining retrieval with generation
+vect = Chroma.from_documents(chunks, embedding=embedding_model, persist_directory="db_conv/")
+retriever = vect.as_retriever(k=3)
+
+# 🔗 RAG Chain: Uses retriever + LLM to answer queries
+chain = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever)
+
+# 📁 Q&A log file
+log_file = "qa_log.json"
+
+# 📝 Save Q&A pairs to JSON file
+def save_to_file(question, answer):
+    data = {"question": question, "answer": answer}
+    if os.path.exists(log_file):
+        with open(log_file, "r", encoding="utf-8") as f:
+            logs = json.load(f)
+    else:
+        logs = []
+    logs.append(data)
+    with open(log_file, "w", encoding="utf-8") as f:
+        json.dump(logs, f, indent=4)
+
+# 🚀 Run: Ask questions and save answers using RAG
+if __name__ == "__main__":
+    questions = ["Hours?", "Return policy?", "Premium plan cost?"]
+    for q in questions:
+        ans = chain.invoke(q)
+        print("Q:", q, "\nA:", ans, "\n")
+        save_to_file(q, ans)
