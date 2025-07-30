@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Friendly AI Trip Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* --- New CSS Styling (No Tailwind) --- */
+        :root {
+            --primary-color: #5A67D8; /* Indigo */
+            --secondary-color: #EBF4FF; /* Light Blue */
+            --background-color: #F7FAFC;
+            --text-color: #2D3748;
+            --light-text-color: #718096;
+            --white-color: #FFFFFF;
+            --user-bubble-color: #3182CE; /* Blue */
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: var(--text-color);
+        }
+
+        .chat-widget {
+            width: 100%;
+            max-width: 680px;
+            height: 90vh;
+            max-height: 800px;
+            background-color: var(--white-color);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background-color: var(--primary-color);
+            color: var(--white-color);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #E2E8F0;
+        }
+
+        .chat-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .chat-header p {
+            margin: 5px 0 0;
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        #chat-container {
+            flex-grow: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+        
+        #chat-container::-webkit-scrollbar { width: 8px; }
+        #chat-container::-webkit-scrollbar-track { background: #f1f1f1; }
+        #chat-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        #chat-container::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+        .message {
+            display: flex;
+            margin-bottom: 16px;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.5s forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .message.assistant-message .avatar {
+            background-color: var(--primary-color);
+            color: var(--white-color);
+        }
+        
+        .message.user-message .avatar {
+            background-color: var(--user-bubble-color);
+            color: var(--white-color);
+        }
+
+        .message .bubble {
+            padding: 12px 16px;
+            border-radius: 18px;
+            max-width: 75%;
+        }
+
+        .message.assistant-message {
+            justify-content: flex-start;
+        }
+
+        .message.assistant-message .bubble {
+            background-color: var(--secondary-color);
+            border-top-left-radius: 4px;
+            margin-left: 12px;
+        }
+
+        .message.user-message {
+            justify-content: flex-end;
+        }
+
+        .message.user-message .bubble {
+            background-color: var(--user-bubble-color);
+            color: var(--white-color);
+            border-top-right-radius: 4px;
+            margin-right: 12px;
+        }
+        
+        .tool-call {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--light-text-color);
+            background-color: #f7fafc;
+            border: 1px solid #e2e8f0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin: 8px auto;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .chat-input-area {
+            padding: 20px;
+            border-top: 1px solid #E2E8F0;
+            background-color: #fdfdfd;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: center;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            border: 1px solid #CBD5E0;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #user-input:focus {
+            border-color: var(--primary-color);
+        }
+
+        #send-btn {
+            background-color: var(--primary-color);
+            color: var(--white-color);
+            border: none;
+            border-radius: 12px;
+            padding: 12px 20px;
+            margin-left: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #send-btn:hover {
+            background-color: #4C51BF;
+        }
+        
+        #send-btn:disabled {
+            background-color: #A3BFFA;
+            cursor: not-allowed;
+        }
+
+        .api-key-area {
+            text-align: center;
+            margin-top: 12px;
+        }
+
+        .api-key-area label {
+            font-size: 0.8rem;
+            color: var(--light-text-color);
+        }
+
+        #api-key-input {
+            width: 95%;
+            margin-top: 4px;
+            padding: 6px 10px;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="chat-widget">
+        <div class="chat-header">
+            <h1>AI Trip Planner</h1>
+            <p>Your friendly guide to the next adventure!</p>
+        </div>
+
+        <div id="chat-container">
+            <!-- Initial Message -->
+            <div class="message assistant-message">
+                <div class="avatar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="12" width="16" height="8" rx="2"/><path d="M2 12h20"/><path d="M17.5 12a5.5 5.5 0 0 0-11 0"/></svg>
+                </div>
+                <div class="bubble">
+                    <p>Hi there! I'm Trippy, your personal AI travel agent. ✈️ I'd be thrilled to help you plan an amazing trip. Where are we off to?</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <div class="input-wrapper">
+                <input type="text" id="user-input" placeholder="e.g., Plan a 3-day trip to Goa">
+                <button id="send-btn">Send</button>
+            </div>
+             <div class="api-key-area">
+                <label for="api-key-input">Enter your Google AI API Key:</label>
+                <input type="password" id="api-key-input" placeholder="Your API Key here">
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const apiKeyInput = document.getElementById('api-key-input');
+
+        const find_flights = ({ destination, origin, date }) => {
+            console.log(`TOOL CALL: Searching for flights from ${origin} to ${destination} for ${date}.`);
+            return {
+                status: "success",
+                flights: [
+                    { flight_number: "AI-202", departure: "08:00 AM", arrival: "10:00 AM", price: "₹7,500" },
+                    { flight_number: "6E-555", departure: "11:30 AM", arrival: "01:30 PM", price: "₹6,800" },
+                ]
+            };
+        };
+
+        const book_hotel = ({ location, nights, budget }) => {
+            console.log(`TOOL CALL: Searching for a hotel in ${location} for ${nights} nights within a budget of ${budget}.`);
+            return {
+                status: "success",
+                hotels: [
+                    { name: "The Grand Palace", rating: 4.5, price_per_night: "₹8,000" },
+                    { name: "Comfy Stays", rating: 4.0, price_per_night: "₹5,500" },
+                ]
+            };
+        };
+
+        const get_tourist_attractions = ({ city }) => {
+            console.log(`TOOL CALL: Finding tourist attractions in ${city}.`);
+            const attractions = {
+                "Mumbai": ["Gateway of India", "Marine Drive", "Elephanta Caves"],
+                "Delhi": ["India Gate", "Qutub Minar", "Humayun's Tomb"],
+                "Goa": ["Baga Beach", "Fort Aguada", "Dudhsagar Falls"],
+            };
+            return {
+                status: "success",
+                attractions: attractions[city] || [`No attractions found for ${city}.`]
+            };
+        };
+        
+        const availableTools = {
+            find_flights,
+            book_hotel,
+            get_tourist_attractions,
+        };
+
+        const toolDefinitions = [
+            {
+                name: "find_flights",
+                description: "Finds available flights for a given origin, destination, and date.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        destination: { type: "STRING", description: "The destination city." },
+                        origin: { type: "STRING", description: "The origin city." },
+                        date: { type: "STRING", description: "The date of travel." }
+                    },
+                    required: ["destination", "origin", "date"]
+                }
+            },
+            {
+                name: "book_hotel",
+                description: "Finds and books a hotel in a given location for a specified number of nights and budget.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        location: { type: "STRING", description: "The city or area for the hotel." },
+                        nights: { type: "NUMBER", description: "The number of nights to stay." },
+                        budget: { type: "STRING", description: "The budget for the hotel, e.g., 'under ₹10,000'." }
+                    },
+                    required: ["location", "nights", "budget"]
+                }
+            },
+            {
+                name: "get_tourist_attractions",
+                description: "Gets a list of popular tourist attractions for a given city.",
+                parameters: {
+                    type: "OBJECT",
+                    properties: {
+                        city: { type: "STRING", description: "The city for which to find attractions." }
+                    },
+                    required: ["city"]
+                }
+            }
+        ];
+
+        let chatHistory = [];
+
+        async function runAgent(prompt) {
+            const apiKey = apiKeyInput.value;
+            if (!apiKey) {
+                addMessage("Please enter your Google AI API Key first!", "assistant");
+                return;
+            }
+
+            setLoading(true);
+            addMessage(prompt, "user");
+
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+            try {
+                let apiResponse = await callApiModel(chatHistory, toolDefinitions);
+
+                while (apiResponse.candidates?.[0]?.content?.parts?.[0]?.functionCall) {
+                    const functionCall = apiResponse.candidates[0].content.parts[0].functionCall;
+                    const { name, args } = functionCall;
+
+                    addToolCallMessage(`Trippy is using the ${name.replace(/_/g, ' ')} tool...`);
+                    
+                    const toolFunction = availableTools[name];
+                    if (!toolFunction) throw new Error(`Unknown tool: ${name}`);
+                    const toolResult = toolFunction(args);
+
+                    chatHistory.push({ role: "model", parts: [{ functionCall }] });
+                    chatHistory.push({
+                        role: "function",
+                        parts: [{ functionResponse: { name, response: toolResult } }]
+                    });
+                    
+                    apiResponse = await callApiModel(chatHistory, toolDefinitions);
+                }
+
+                const textResponse = apiResponse.candidates[0].content.parts[0].text;
+                addMessage(textResponse, "assistant");
+                chatHistory.push({ role: "model", parts: [{ text: textResponse }] });
+
+            } catch (error) {
+                console.error("Error running agent:", error);
+                addMessage("Oh no! Something went wrong. Please check the console for technical details.", "assistant");
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function callApiModel(history, tools) {
+             const apiKey = apiKeyInput.value;
+             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+             
+             // NEW: Added a system instruction for a friendlier persona
+             const payload = {
+                contents: history,
+                tools: [{ functionDeclarations: tools }],
+                systemInstruction: {
+                    parts: [{
+                        text: "You are a friendly and enthusiastic travel planner named 'Trippy'. Your goal is to help users plan their dream vacations with a cheerful and helpful attitude. Use emojis where appropriate to make the conversation more engaging."
+                    }]
+                }
+             };
+
+             const response = await fetch(apiUrl, {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify(payload)
+             });
+
+             if (!response.ok) {
+                 const errorBody = await response.text();
+                 throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorBody}`);
+             }
+
+             return response.json();
+        }
+
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', `${sender}-message`);
+
+            const avatar = document.createElement('div');
+            avatar.classList.add('avatar');
+
+            const bubble = document.createElement('div');
+            bubble.classList.add('bubble');
+            bubble.innerHTML = `<p>${text.replace(/\n/g, '<br>')}</p>`;
+
+            if (sender === 'assistant') {
+                avatar.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="12" width="16" height="8" rx="2"/><path d="M2 12h20"/><path d="M17.5 12a5.5 5.5 0 0 0-11 0"/></svg>`;
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(bubble);
+            } else { // user
+                avatar.textContent = 'U';
+                messageDiv.appendChild(bubble);
+                messageDiv.appendChild(avatar);
+            }
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function addToolCallMessage(text) {
+            const toolCallDiv = document.createElement('div');
+            toolCallDiv.classList.add('message', 'tool-call');
+            toolCallDiv.textContent = text;
+            chatContainer.appendChild(toolCallDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function setLoading(isLoading) {
+            userInput.disabled = isLoading;
+            sendBtn.disabled = isLoading;
+            if (isLoading) {
+                sendBtn.innerHTML = `...`;
+            } else {
+                sendBtn.textContent = 'Send';
+            }
+        }
+
+        sendBtn.addEventListener('click', () => {
+            const prompt = userInput.value.trim();
+            if (prompt) {
+                runAgent(prompt);
+                userInput.value = '';
+            }
+        });
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !sendBtn.disabled) {
+                sendBtn.click();
+            }
+        });
+
+    </script>
+</body>
+</html>
